@@ -1,21 +1,19 @@
 pipeline {
     agent any
-
+    environment {
+        SONARQUBE_URL = 'http://localhost:9000'  // Change if your SonarQube is hosted elsewhere
+    }
     stages {
         stage('Clone Repository') {
             steps {
-                git branch: 'main', url: 'git@github.com:VINAY-KUMAR-VANKAYALAPATI/python-jenkins-pipeline.git'
+                git 'git@github.com:VINAY-KUMAR-VANKAYALAPATI/python-jenkins-pipeline.git'
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                sh '''
-                export PATH=$HOME/.local/bin:$PATH
-                python3 -m ensurepip --default-pip
-                python3 -m pip install --upgrade pip
-                python3 -m pip install -r requirements.txt
-                '''
+                sh 'python3 -m pip install --upgrade pip'
+                sh 'python3 -m pip install -r requirements.txt'
             }
         }
 
@@ -27,33 +25,32 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                sh 'sonar-scanner'
+                withSonarQubeEnv('SonarQube') { // Ensure "SonarQube" matches the name configured in Jenkins
+                    sh '''
+                        sonar-scanner \
+                            -Dsonar.projectKey=python-jenkins-pipeline \
+                            -Dsonar.sources=. \
+                            -Dsonar.host.url=$SONARQUBE_URL \
+                            -Dsonar.login=$SONARQUBE_TOKEN
+                    '''
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh '''
-                docker build -t 2022bcd0023/python-app .
-                '''
+                sh 'docker build -t 2022bcd0023/python-jenkins-pipeline:latest .'
             }
         }
 
         stage('Push to Docker Hub') {
             steps {
-                withDockerRegistry([credentialsId: 'docker-hub-credentials', url: '']) {
-                    sh 'docker push 2022bcd0023/python-app'
-                }
+                sh 'docker login -u 2022bcd0023 -p $DOCKER_HUB_PASSWORD'
+                sh 'docker push 2022bcd0023/python-jenkins-pipeline:latest'
             }
         }
 
         stage('Deploy Container') {
             steps {
-                sh '''
-                docker run -d -p 5000:5000 2022bcd0023/python-app
-                '''
-            }
-        }
-    }
-}
+                s
 
