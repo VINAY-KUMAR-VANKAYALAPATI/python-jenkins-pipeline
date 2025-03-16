@@ -45,7 +45,7 @@ pipeline {
 
         stage('Push to Docker Hub') {
             steps {
-                sh 'docker login -u 2022bcd0023 -p $DOCKER_HUB_PASSWORD'
+                sh 'docker login -u 2022bcd0023 -p Vinay@2004'
                 sh 'docker push 2022bcd0023/python-jenkins-pipeline:latest'
             }
         }
