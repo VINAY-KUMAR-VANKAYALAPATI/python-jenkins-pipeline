@@ -1,10 +1,6 @@
 pipeline {
     agent any
 
-    environment {
-        DOCKER_IMAGE = "2022bcd0023/python-jenkins-pipeline"
-    }
-
     stages {
         stage('Clone Repository') {
             steps {
@@ -14,42 +10,48 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                sh 'pip install -r requirements.txt'
+                sh '''
+                export PATH=$HOME/.local/bin:$PATH
+                python3 -m ensurepip --default-pip
+                python3 -m pip install --upgrade pip
+                python3 -m pip install -r requirements.txt
+                '''
             }
         }
 
         stage('Run Tests') {
             steps {
-                sh 'pytest tests/'
+                sh 'python3 -m unittest discover'
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh 'sonar-scanner'
-                }
+                sh 'sonar-scanner'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $DOCKER_IMAGE .'
+                sh '''
+                docker build -t 2022bcd0023/python-app .
+                '''
             }
         }
 
         stage('Push to Docker Hub') {
             steps {
-                withCredentials([string(credentialsId: 'docker-hub-password', variable: 'DOCKER_PASS')]) {
-                    sh 'echo $DOCKER_PASS | docker login -u 2022bcd0023 --password-stdin'
-                    sh 'docker push $DOCKER_IMAGE'
+                withDockerRegistry([credentialsId: 'docker-hub-credentials', url: '']) {
+                    sh 'docker push 2022bcd0023/python-app'
                 }
             }
         }
 
         stage('Deploy Container') {
             steps {
-                sh 'docker run -d -p 5000:5000 $DOCKER_IMAGE'
+                sh '''
+                docker run -d -p 5000:5000 2022bcd0023/python-app
+                '''
             }
         }
     }
